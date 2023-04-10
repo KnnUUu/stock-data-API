@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  financial:
+    build:
+      context: .
+    command: tail -F anything
+    environment:
+      API_KEY: ${STOCK_DATA_API_KEY}
+      API_URL: ${STOCK_DATA_API_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    networks:
+      - api
+      - db
+
+  db:
+    image: mysql:8.0.32
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", 'mysql --database=$$MYSQL_DATABASE --password=$$MYSQL_ROOT_PASSWORD --execute="SELECT count(table_name) > 0 FROM information_schema.tables;" --skip-column-names -B']
+      interval: 30s
+      timeout: 10s
+      retries: 4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: stock_data
+      MYSQL_USER: ${SQL_USER}
+      MYSQL_PASSWORD: ${SQL_PASS}
+    ports: 
+      - "3306:3306"
+    networks: 
+      - db
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+networks: 
+  db:
+  api:
